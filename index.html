@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Loop & Mute Player - Global Sync</title>
+    <title>Multi-Player Loop Beta</title>
     <style>
         body {
             margin: 0;
@@ -72,12 +72,22 @@
             height: 100vh;
             border-radius: 0;
         }
-        .video-wrapper iframe {
+        /* Style untuk YouTube Player */
+        .video-wrapper iframe#player {
             position: absolute;
             top: -60px;
             left: 0;
             width: 100%;
             height: calc(100% + 120px);
+        }
+        /* Style khusus untuk Google Drive Player */
+        .video-wrapper iframe#gdrivePlayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
         }
         .fullscreen-btn {
             position: absolute;
@@ -122,12 +132,15 @@
 
 <div class="container">
     <div class="input-section">
-        <input type="text" id="youtubeUrl" placeholder="Masukkan Link YouTube atau Video ID...">
+        <input type="text" id="youtubeUrl" placeholder="Masukkan Link YouTube atau Google Drive...">
         <button onclick="loadNewVideo()">Putar</button>
     </div>
 
     <div id="playerWrapper" class="video-wrapper hidden">
         <div id="player"></div>
+        
+        <iframe id="gdrivePlayer" class="hidden" allow="autoplay"></iframe>
+
         <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Layar Penuh">
             <svg viewBox="0 0 24 24">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -146,6 +159,7 @@
 
     let player;
     let currentVideoId = 'bRNlrdfKNd4'; 
+    let isGoogleDrive = false;
 
     window.onload = async function() {
         try {
@@ -157,57 +171,54 @@
 
             if (data && data.video_id && data.video_id !== 'contoh') {
                 currentVideoId = data.video_id;
-                // Mengosongkan kolom saat load pertama kali agar tidak menampilkan link dari database
                 document.getElementById('youtubeUrl').value = '';
+                
+                // Deteksi otomatis tipe video saat halaman dibuka kembali
+                isGoogleDrive = currentVideoId.startsWith("gdrive_");
+                
+                if (isGoogleDrive) {
+                    playGoogleDriveVideo(currentVideoId.replace("gdrive_", ""));
+                } else {
+                    if (typeof YT !== 'undefined' && YT.loaded) {
+                        onYouTubeIframeAPIReady();
+                    }
+                }
             }
         } catch (err) {
             console.log("Membaca konfigurasi fallback lokal:", err);
-        } finally {
-            if (typeof YT !== 'undefined' && YT.loaded) {
-                onYouTubeIframeAPIReady();
-            }
         }
     };
 
-    function extractVideoId(url) {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : url;
+    // Fungsi ekstrak ID (Bisa mendeteksi YouTube maupun Google Drive)
+    function extractMediaInfo(url) {
+        if (url.includes("drive.google.com")) {
+            // Mengambil ID file unik dari link Google Drive
+            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            return match ? { type: 'gdrive', id: match[1] } : null;
+        } else {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? { type: 'youtube', id: match[2] } : { type: 'youtube', id: url };
+        }
     }
 
     function onYouTubeIframeAPIReady() {
-        if (!currentVideoId) return;
+        if (isGoogleDrive || !currentVideoId) return;
+        
         document.getElementById('playerWrapper').classList.remove('hidden');
+        document.getElementById('gdrivePlayer').classList.add('hidden');
+        
+        const ytDOM = document.getElementById('player');
+        if (ytDOM) ytDOM.classList.remove('hidden');
 
         if (player && typeof player.loadVideoById === 'function') {
-            player.loadVideoById({
-                videoId: currentVideoId,
-                startSeconds: 0
-            });
-            setTimeout(() => {
-                player.mute();
-                player.playVideo();
-            }, 500);
+            player.loadVideoById({ videoId: currentVideoId, startSeconds: 0 });
+            setTimeout(() => { player.mute(); player.playVideo(); }, 500);
         } else {
             player = new YT.Player('player', {
-                height: '100%',
-                width: '100%',
-                videoId: currentVideoId,
-                playerVars: {
-                    'autoplay': 1,
-                    'loop': 1,
-                    'playlist': currentVideoId,
-                    'mute': 1,          
-                    'controls': 1,      
-                    'rel': 0,
-                    'modestbranding': 1,
-                    'fs': 0,
-                    'iv_load_policy': 3
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
-                }
+                height: '100%', width: '100%', videoId: currentVideoId,
+                playerVars: { 'autoplay': 1, 'loop': 1, 'playlist': currentVideoId, 'mute': 1, 'controls': 1, 'rel': 0, 'modestbranding': 1, 'fs': 0, 'iv_load_policy': 3 },
+                events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
             });
         }
     }
@@ -215,50 +226,65 @@
     function onPlayerReady(event) {
         event.target.mute();
         event.target.playVideo();
-        
-        setTimeout(() => {
-            if (event.target.getPlayerState() !== 1) {
-                event.target.playVideo();
-            }
-        }, 1000);
     }
 
     function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.ENDED) {
-            player.playVideo();
-        }
+        if (event.data === YT.PlayerState.ENDED) player.playVideo();
+    }
+
+    // Fungsi khusus untuk menampilkan dan memutar Google Drive
+    function playGoogleDriveVideo(fileId) {
+        isGoogleDrive = true;
+        document.getElementById('playerWrapper').classList.remove('hidden');
+        
+        // Sembunyikan player YouTube jika ada
+        const ytDOM = document.getElementById('player');
+        if (ytDOM) ytDOM.classList.add('hidden');
+        if (player && typeof player.stopVideo === 'function') player.stopVideo();
+
+        // Tampilkan dan isi src iframe Google Drive dengan mode preview bawaan
+        const gdriveIframe = document.getElementById('gdrivePlayer');
+        gdriveIframe.classList.remove('hidden');
+        gdriveIframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
     }
 
     async function loadNewVideo() {
         const inputField = document.getElementById('youtubeUrl');
         const inputData = inputField.value.trim();
-        if (!inputData) return alert('Masukkan link YouTube terlebih dahulu!');
+        if (!inputData) return alert('Masukkan link YouTube atau Google Drive terlebih dahulu!');
 
-        const videoId = extractVideoId(inputData);
+        const media = extractMediaInfo(inputData);
         
-        if (videoId.length === 11) {
-            currentVideoId = videoId;
-            
-            onYouTubeIframeAPIReady();
+        if (media) {
+            let dbValue = media.id;
 
+            if (media.type === 'gdrive') {
+                isGoogleDrive = true;
+                dbValue = "gdrive_" + media.id; // Tanda pengenal khusus di database Supabase
+                playGoogleDriveVideo(media.id);
+            } else {
+                isGoogleDrive = false;
+                currentVideoId = media.id;
+                onYouTubeIframeAPIReady();
+            }
+
+            // Simpan perubahan ke cloud Supabase
             const { error } = await supabaseClient
                 .from('video_settings')
-                .upsert({ id: 1, video_id: videoId }); 
+                .upsert({ id: 1, video_id: dbValue }); 
 
             if (error) {
                 alert("Gagal sinkronisasi ke cloud Supabase: " + error.message);
             } else {
-                // === SOLUSI: Langsung kosongkan input teks setelah berhasil simpan ===
+                // Sembunyikan link agar aman
                 inputField.value = '';
-                inputField.placeholder = "Video berhasil disinkronkan!";
-                
-                // Kembalikan placeholder bawaan setelah 3 detik
+                inputField.placeholder = "Media berhasil disinkronkan!";
                 setTimeout(() => {
-                    inputField.placeholder = "Masukkan Link YouTube atau Video ID...";
+                    inputField.placeholder = "Masukkan Link YouTube atau Google Drive...";
                 }, 3000);
             }
         } else {
-            alert('Format link atau Video ID tidak valid!');
+            alert('Format link tidak valid!');
         }
     }
 
