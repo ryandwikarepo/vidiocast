@@ -139,11 +139,9 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-    // === KONFIGURASI SUPABASE (Nama variabel diubah agar tidak bentrok) ===
     const SUPABASE_URL = "https://zrycfquuqcygftngkwku.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_D7uzajVgAFW_8EC5hQp57g_IBiyAHYO"; 
     
-    // Menggunakan nama 'supabaseClient' untuk menghindari SyntaxError
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let player;
@@ -159,7 +157,8 @@
 
             if (data && data.video_id && data.video_id !== 'contoh') {
                 currentVideoId = data.video_id;
-                document.getElementById('youtubeUrl').value = `https://www.youtube.com/watch?v=${currentVideoId}`;
+                // Mengosongkan kolom saat load pertama kali agar tidak menampilkan link dari database
+                document.getElementById('youtubeUrl').value = '';
             }
         } catch (err) {
             console.log("Membaca konfigurasi fallback lokal:", err);
@@ -231,7 +230,8 @@
     }
 
     async function loadNewVideo() {
-        const inputData = document.getElementById('youtubeUrl').value.trim();
+        const inputField = document.getElementById('youtubeUrl');
+        const inputData = inputField.value.trim();
         if (!inputData) return alert('Masukkan link YouTube terlebih dahulu!');
 
         const videoId = extractVideoId(inputData);
@@ -241,13 +241,21 @@
             
             onYouTubeIframeAPIReady();
 
-            // Menggunakan database `.upsert()` melalui client baru
             const { error } = await supabaseClient
                 .from('video_settings')
                 .upsert({ id: 1, video_id: videoId }); 
 
             if (error) {
                 alert("Gagal sinkronisasi ke cloud Supabase: " + error.message);
+            } else {
+                // === SOLUSI: Langsung kosongkan input teks setelah berhasil simpan ===
+                inputField.value = '';
+                inputField.placeholder = "Video berhasil disinkronkan!";
+                
+                // Kembalikan placeholder bawaan setelah 3 detik
+                setTimeout(() => {
+                    inputField.placeholder = "Masukkan Link YouTube atau Video ID...";
+                }, 3000);
             }
         } else {
             alert('Format link atau Video ID tidak valid!');
