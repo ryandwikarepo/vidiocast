@@ -3,36 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Loop & Mute Player - Global Sync</title>
+    <title>Multi YouTube Loop & Mute Player - Global Sync</title>
     <style>
         body {
             margin: 0;
-            padding: 0;
+            padding: 20px 0;
             background-color: #111;
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             min-height: 100vh;
             color: #fff;
-            overflow: hidden;
+            /* overflow diubah ke auto agar halaman bisa di-scroll ke bawah */
+            overflow-y: auto; 
         }
         .container {
             width: 90%;
             max-width: 800px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 50px; /* Jarak pemisah antara Player 1 dan Player 2 */
+        }
+        .player-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .player-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .input-section {
             margin-bottom: 20px;
             z-index: 20;
             position: relative;
+            width: 100%;
         }
+        /* Menyembunyikan input saat player yang bersangkutan fullscreen */
+        .video-wrapper:fullscreen ~ .input-section,
         :fullscreen .input-section {
             display: none !important;
         }
         input[type="text"] {
-            width: 70%;
+            width: 65%;
             padding: 10px;
             border: none;
             border-radius: 4px;
@@ -121,19 +142,39 @@
 <body>
 
 <div class="container">
-    <div class="input-section">
-        <input type="text" id="youtubeUrl" placeholder="Masukkan Link YouTube atau Video ID...">
-        <button onclick="loadNewVideo()">Putar</button>
+    
+    <div class="player-section">
+        <div class="player-title">Pemutar Video 1</div>
+        <div class="input-section">
+            <input type="text" id="youtubeUrl1" placeholder="Masukkan Link YouTube atau Video ID (Player 1)...">
+            <button onclick="loadNewVideo(1)">Putar</button>
+        </div>
+        <div id="playerWrapper1" class="video-wrapper hidden">
+            <div id="player1"></div>
+            <button class="fullscreen-btn" onclick="toggleFullscreen('playerWrapper1')" title="Layar Penuh">
+                <svg viewBox="0 0 24 24">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+            </button>
+        </div>
     </div>
 
-    <div id="playerWrapper" class="video-wrapper hidden">
-        <div id="player"></div>
-        <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Layar Penuh">
-            <svg viewBox="0 0 24 24">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-            </svg>
-        </button>
+    <div class="player-section">
+        <div class="player-title">Pemutar Video 2</div>
+        <div class="input-section">
+            <input type="text" id="youtubeUrl2" placeholder="Masukkan Link YouTube atau Video ID (Player 2)...">
+            <button onclick="loadNewVideo(2)">Putar</button>
+        </div>
+        <div id="playerWrapper2" class="video-wrapper hidden">
+            <div id="player2"></div>
+            <button class="fullscreen-btn" onclick="toggleFullscreen('playerWrapper2')" title="Layar Penuh">
+                <svg viewBox="0 0 24 24">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+            </button>
+        </div>
     </div>
+
 </div>
 
 <script src="https://www.youtube.com/iframe_api"></script>
@@ -144,29 +185,70 @@
     
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let player;
-    let currentVideoId = 'bRNlrdfKNd4'; 
+    // Definisi instansiasi player YouTube secara terpisah
+    let player1, player2;
+    let currentVideoId1 = 'bRNlrdfKNd4'; // Default fallback video atas
+    let currentVideoId2 = 'bRNlrdfKNd4'; // Default fallback video bawah
 
     window.onload = async function() {
+        // 1. Ambil data tersimpan dari Supabase Cloud saat load halaman pertama kali
         try {
-            const { data, error } = await supabaseClient
+            // Ambil data untuk Player 1 (ID baris 1 di database)
+            const res1 = await supabaseClient
                 .from('video_settings')
                 .select('video_id')
                 .eq('id', 1)
                 .maybeSingle();
 
-            if (data && data.video_id && data.video_id !== 'contoh') {
-                currentVideoId = data.video_id;
-                // Mengosongkan kolom saat load pertama kali agar tidak menampilkan link dari database
-                document.getElementById('youtubeUrl').value = '';
+            if (res1.data && res1.data.video_id && res1.data.video_id !== 'contoh') {
+                currentVideoId1 = res1.data.video_id;
             }
+
+            // Ambil data untuk Player 2 (ID baris 2 di database)
+            const res2 = await supabaseClient
+                .from('video_settings')
+                .select('video_id')
+                .eq('id', 2)
+                .maybeSingle();
+
+            if (res2.data && res2.data.video_id && res2.data.video_id !== 'contoh') {
+                currentVideoId2 = res2.data.video_id;
+            }
+
+            // Keamanan Privasi: Kosongkan teks kolom link bawaan
+            document.getElementById('youtubeUrl1').value = '';
+            document.getElementById('youtubeUrl2').value = '';
+
         } catch (err) {
-            console.log("Membaca konfigurasi fallback lokal:", err);
+            console.log("Membaca konfigurasi sinkronisasi cloud terhambat:", err);
         } finally {
             if (typeof YT !== 'undefined' && YT.loaded) {
                 onYouTubeIframeAPIReady();
             }
         }
+
+        // 2. Mengaktifkan fitur Realtime otomatis tanpa penyegaran browser (Realtime Sync)
+        supabaseClient
+            .channel('schema-db-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'video_settings' },
+                (payload) => {
+                    if (payload.new && payload.new.id) {
+                        const targetId = payload.new.id;
+                        const newVideoId = payload.new.video_id;
+                        
+                        if (targetId === 1) {
+                            currentVideoId1 = newVideoId;
+                            setupSinglePlayer(1, currentVideoId1);
+                        } else if (targetId === 2) {
+                            currentVideoId2 = newVideoId;
+                            setupSinglePlayer(2, currentVideoId2);
+                        }
+                    }
+                }
+            )
+            .subscribe();
     };
 
     function extractVideoId(url) {
@@ -175,28 +257,37 @@
         return (match && match[2].length === 11) ? match[2] : url;
     }
 
+    // Inisialisasi awal API YouTube untuk kedua pemutar
     function onYouTubeIframeAPIReady() {
-        if (!currentVideoId) return;
-        document.getElementById('playerWrapper').classList.remove('hidden');
+        setupSinglePlayer(1, currentVideoId1);
+        setupSinglePlayer(2, currentVideoId2);
+    }
 
-        if (player && typeof player.loadVideoById === 'function') {
-            player.loadVideoById({
-                videoId: currentVideoId,
+    // Fungsi pembuat sistem objek player YouTube mandiri
+    function setupSinglePlayer(playerNum, videoId) {
+        if (!videoId) return;
+        document.getElementById(`playerWrapper${playerNum}`).classList.remove('hidden');
+
+        let targetPlayer = playerNum === 1 ? player1 : player2;
+
+        if (targetPlayer && typeof targetPlayer.loadVideoById === 'function') {
+            targetPlayer.loadVideoById({
+                videoId: videoId,
                 startSeconds: 0
             });
             setTimeout(() => {
-                player.mute();
-                player.playVideo();
+                targetPlayer.mute();
+                targetPlayer.playVideo();
             }, 500);
         } else {
-            player = new YT.Player('player', {
+            const newPlayerInstance = new YT.Player(`player${playerNum}`, {
                 height: '100%',
                 width: '100%',
-                videoId: currentVideoId,
+                videoId: videoId,
                 playerVars: {
                     'autoplay': 1,
                     'loop': 1,
-                    'playlist': currentVideoId,
+                    'playlist': videoId,
                     'mute': 1,          
                     'controls': 1,      
                     'rel': 0,
@@ -205,56 +296,55 @@
                     'iv_load_policy': 3
                 },
                 events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
+                    'onReady': (event) => {
+                        event.target.mute();
+                        event.target.playVideo();
+                        setTimeout(() => {
+                            if (event.target.getPlayerState() !== 1) event.target.playVideo();
+                        }, 1000);
+                    },
+                    'onStateChange': (event) => {
+                        if (event.data === YT.PlayerState.ENDED) {
+                            event.target.playVideo();
+                        }
+                    }
                 }
             });
+
+            if (playerNum === 1) player1 = newPlayerInstance;
+            else player2 = newPlayerInstance;
         }
     }
 
-    function onPlayerReady(event) {
-        event.target.mute();
-        event.target.playVideo();
-        
-        setTimeout(() => {
-            if (event.target.getPlayerState() !== 1) {
-                event.target.playVideo();
-            }
-        }, 1000);
-    }
-
-    function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.ENDED) {
-            player.playVideo();
-        }
-    }
-
-    async function loadNewVideo() {
-        const inputField = document.getElementById('youtubeUrl');
+    // Fungsi trigger tombol putar link
+    async function loadNewVideo(playerNum) {
+        const inputField = document.getElementById(`youtubeUrl${playerNum}`);
         const inputData = inputField.value.trim();
-        if (!inputData) return alert('Masukkan link YouTube terlebih dahulu!');
+        if (!inputData) return alert(`Masukkan link YouTube terlebih dahulu untuk Pemutar ${playerNum}!`);
 
         const videoId = extractVideoId(inputData);
         
         if (videoId.length === 11) {
-            currentVideoId = videoId;
+            if (playerNum === 1) currentVideoId1 = videoId;
+            else currentVideoId2 = videoId;
             
-            onYouTubeIframeAPIReady();
+            // Eksekusi pemutaran lokal secara instan
+            setupSinglePlayer(playerNum, videoId);
 
+            // Perbarui record baris ke database cloud (id: 1 untuk player 1, id: 2 untuk player 2)
             const { error } = await supabaseClient
                 .from('video_settings')
-                .upsert({ id: 1, video_id: videoId }); 
+                .upsert({ id: playerNum, video_id: videoId }); 
 
             if (error) {
-                alert("Gagal sinkronisasi ke cloud Supabase: " + error.message);
+                alert("Gagal sinkronisasi data ke cloud Supabase: " + error.message);
             } else {
-                // === SOLUSI: Langsung kosongkan input teks setelah berhasil simpan ===
+                // Kebijakan Privasi: Bersihkan input link agar tidak mengintip data link lama
                 inputField.value = '';
-                inputField.placeholder = "Video berhasil disinkronkan!";
+                inputField.placeholder = `Video ${playerNum} disinkronkan!`;
                 
-                // Kembalikan placeholder bawaan setelah 3 detik
                 setTimeout(() => {
-                    inputField.placeholder = "Masukkan Link YouTube atau Video ID...";
+                    inputField.placeholder = `Masukkan Link YouTube atau Video ID (Player ${playerNum})...`;
                 }, 3000);
             }
         } else {
@@ -262,8 +352,8 @@
         }
     }
 
-    function toggleFullscreen() {
-        const elem = document.getElementById('playerWrapper');
+    function toggleFullscreen(wrapperId) {
+        const elem = document.getElementById(wrapperId);
         if (!document.fullscreenElement) {
             if (elem.requestFullscreen) elem.requestFullscreen();
             else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
