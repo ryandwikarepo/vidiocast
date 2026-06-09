@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Loop & Mute Player</title>
+    <title>YouTube Loop & Mute Player - Pure Video</title>
     <style>
         body {
             margin: 0;
@@ -16,6 +16,7 @@
             justify-content: center;
             min-height: 100vh;
             color: #fff;
+            overflow: hidden;
         }
         .container {
             width: 90%;
@@ -24,6 +25,8 @@
         }
         .input-section {
             margin-bottom: 20px;
+            z-index: 20; /* Memastikan input tetap berada di paling atas dan bisa diklik */
+            position: relative;
         }
         input[type="text"] {
             width: 70%;
@@ -31,6 +34,12 @@
             border: none;
             border-radius: 4px;
             font-size: 16px;
+            background-color: #222;
+            color: #fff;
+            border: 1px solid #414141;
+        }
+        input[type="text"]:focus {
+            outline: 1px solid #ff0000;
         }
         button {
             padding: 10px 20px;
@@ -46,28 +55,27 @@
             background-color: #cc0000;
         }
         
-        /* Pembungkus utama video */
+        /* Bingkai Utama Player */
         .video-wrapper {
             position: relative;
             width: 100%;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            padding-bottom: 56.25%; /* Rasio 16:9 */
             background: #000;
             border-radius: 8px;
-            overflow: hidden;
+            overflow: hidden; /* Memotong semua elemen YouTube yang keluar dari bingkai */
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
         
-        /* Memperbesar iframe sedikit agar elemen judul terpotong di luar area pandang */
+        /* Trik Zoom & Geser untuk Menyembunyikan Judul dan Kontrol YouTube secara Absolut */
         .video-wrapper iframe {
             position: absolute;
-            top: -60px; /* Menyembunyikan judul asli YouTube ke atas */
-            left: 0;
-            width: 100%;
-            height: calc(100% + 120px); /* Menambah tinggi untuk mengompensasi potongan atas & bawah */
-            pointer-events: none; /* Mencegah klik langsung pada elemen YouTube */
+            top: -65px; /* Mendorong judul YouTube ke atas hingga tidak terlihat */
+            left: -10px;
+            width: calc(100% + 20px); /* Melebarkan sedikit agar pas */
+            height: calc(100% + 135px); /* Menambah tinggi agar bar kontrol di bawah terdorong ke luar bingkai */
         }
 
-        /* Lapisan Pelindung Transparan (Masking) */
+        /* Lapisan Pelindung Transparan Total */
         .video-mask {
             position: absolute;
             top: 0;
@@ -76,19 +84,7 @@
             height: 100%;
             z-index: 10;
             background: transparent;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        /* Saat kursor diarahkan (HOVER), turunkan kembali video agar judul & kontrol terlihat */
-        .video-wrapper:hover iframe {
-            top: 0;
-            height: 100%;
-            pointer-events: auto; /* Mengaktifkan kembali kontrol klik YouTube */
-        }
-        
-        .video-wrapper:hover .video-mask {
-            pointer-events: none; /* Menghilangkan lapisan pelindung agar tombol bisa diklik */
+            cursor: default;
         }
 
         .hidden {
@@ -154,9 +150,11 @@
                     'loop': 1,
                     'playlist': currentVideoId,
                     'mute': 1,
-                    'controls': 1, // Tetap 1 agar kontrol muncul saat di-hover
+                    'controls': 0, /* Mematikan kontrol dasar YouTube */
                     'rel': 0,
-                    'modestbranding': 1
+                    'modestbranding': 1,
+                    'fs': 0, /* Mematikan tombol fullscreen bawaan */
+                    'iv_load_policy': 3 /* Menyembunyikan anotasi video */
                 },
                 events: {
                     'onReady': onPlayerReady,
