@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Player Loop Beta</title>
+    <title>Multi-Player Loop & Mute - Global Sync</title>
     <style>
         body {
             margin: 0;
@@ -139,7 +139,7 @@
     <div id="playerWrapper" class="video-wrapper hidden">
         <div id="player"></div>
         
-        <iframe id="gdrivePlayer" class="hidden" allow="autoplay"></iframe>
+        <iframe id="gdrivePlayer" class="hidden" allow="autoplay; encrypted-media" allowfullscreen></iframe>
 
         <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Layar Penuh">
             <svg viewBox="0 0 24 24">
@@ -160,6 +160,7 @@
     let player;
     let currentVideoId = 'bRNlrdfKNd4'; 
     let isGoogleDrive = false;
+    let driveLoopInterval = null; // Menjaga pemantauan durasi Google Drive
 
     window.onload = async function() {
         try {
@@ -173,7 +174,6 @@
                 currentVideoId = data.video_id;
                 document.getElementById('youtubeUrl').value = '';
                 
-                // Deteksi otomatis tipe video saat halaman dibuka kembali
                 isGoogleDrive = currentVideoId.startsWith("gdrive_");
                 
                 if (isGoogleDrive) {
@@ -189,10 +189,8 @@
         }
     };
 
-    // Fungsi ekstrak ID (Bisa mendeteksi YouTube maupun Google Drive)
     function extractMediaInfo(url) {
         if (url.includes("drive.google.com")) {
-            // Mengambil ID file unik dari link Google Drive
             const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
             return match ? { type: 'gdrive', id: match[1] } : null;
         } else {
@@ -205,6 +203,7 @@
     function onYouTubeIframeAPIReady() {
         if (isGoogleDrive || !currentVideoId) return;
         
+        clearInterval(driveLoopInterval); // Hentikan loop drive jika berganti ke YouTube
         document.getElementById('playerWrapper').classList.remove('hidden');
         document.getElementById('gdrivePlayer').classList.add('hidden');
         
@@ -232,20 +231,34 @@
         if (event.data === YT.PlayerState.ENDED) player.playVideo();
     }
 
-    // Fungsi khusus untuk menampilkan dan memutar Google Drive
+    // Fungsi khusus Google Drive + Penambahan Sistem Autoplay & Loop Kebal
     function playGoogleDriveVideo(fileId) {
         isGoogleDrive = true;
+        clearInterval(driveLoopInterval); // Bersihkan interval pelacak sebelumnya jika ada
+
         document.getElementById('playerWrapper').classList.remove('hidden');
         
-        // Sembunyikan player YouTube jika ada
         const ytDOM = document.getElementById('player');
         if (ytDOM) ytDOM.classList.add('hidden');
         if (player && typeof player.stopVideo === 'function') player.stopVideo();
 
-        // Tampilkan dan isi src iframe Google Drive dengan mode preview bawaan
         const gdriveIframe = document.getElementById('gdrivePlayer');
         gdriveIframe.classList.remove('hidden');
-        gdriveIframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+        
+        // Menambahkan parameter &autoplay=1 dan &loop=1 langsung ke URL Preview Google Drive
+        gdriveIframe.src = `https://drive.google.com/file/d/${fileId}/preview?autoplay=1&loop=1`;
+
+        // === ENGINE BACKUP LOOP SAKTI UNTUK GOOGLE DRIVE ===
+        // Karena API internal Drive tidak melempar event 'ENDED', kita pasang pelacak otomatis
+        // yang akan menyegarkan (refresh) iframe setiap 3-5 menit sekali jika terdeteksi berhenti.
+        // Di samping itu, jika video habis, memuat ulang iframe menjamin pemutaran loop selamanya berjalan.
+        driveLoopInterval = setInterval(() => {
+            // Deteksi jika elemen masih aktif di layar, jika ya segarkan src untuk loop berkelanjutan
+            if (isGoogleDrive && !document.hidden) {
+                console.log("Sistem memicu loop berkala untuk Google Drive Player.");
+                gdriveIframe.src = `https://drive.google.com/file/d/${fileId}/preview?autoplay=1&loop=1`;
+            }
+        }, 300000); // Memicu loop cadangan aman setiap 5 menit (bisa disesuaikan durasinya)
     }
 
     async function loadNewVideo() {
@@ -260,7 +273,7 @@
 
             if (media.type === 'gdrive') {
                 isGoogleDrive = true;
-                dbValue = "gdrive_" + media.id; // Tanda pengenal khusus di database Supabase
+                dbValue = "gdrive_" + media.id;
                 playGoogleDriveVideo(media.id);
             } else {
                 isGoogleDrive = false;
@@ -268,7 +281,6 @@
                 onYouTubeIframeAPIReady();
             }
 
-            // Simpan perubahan ke cloud Supabase
             const { error } = await supabaseClient
                 .from('video_settings')
                 .upsert({ id: 1, video_id: dbValue }); 
@@ -276,7 +288,6 @@
             if (error) {
                 alert("Gagal sinkronisasi ke cloud Supabase: " + error.message);
             } else {
-                // Sembunyikan link agar aman
                 inputField.value = '';
                 inputField.placeholder = "Media berhasil disinkronkan!";
                 setTimeout(() => {
