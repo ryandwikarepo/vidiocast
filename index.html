@@ -80,14 +80,15 @@
             width: 100%;
             height: calc(100% + 120px);
         }
-        /* Style khusus untuk Google Drive Player */
-        .video-wrapper iframe#gdrivePlayer {
+        /* Style untuk HTML5 Video Player (Google Drive) */
+        .video-wrapper video#html5Player {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            border: none;
+            object-fit: contain;
+            background: #000;
         }
         .fullscreen-btn {
             position: absolute;
@@ -139,7 +140,7 @@
     <div id="playerWrapper" class="video-wrapper hidden">
         <div id="player"></div>
         
-        <iframe id="gdrivePlayer" class="hidden" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        <video id="html5Player" class="hidden" autoplay loop muted playsinline controls></video>
 
         <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Layar Penuh">
             <svg viewBox="0 0 24 24">
@@ -160,7 +161,6 @@
     let player;
     let currentVideoId = 'bRNlrdfKNd4'; 
     let isGoogleDrive = false;
-    let driveLoopInterval = null; // Menjaga pemantauan durasi Google Drive
 
     window.onload = async function() {
         try {
@@ -203,9 +203,8 @@
     function onYouTubeIframeAPIReady() {
         if (isGoogleDrive || !currentVideoId) return;
         
-        clearInterval(driveLoopInterval); // Hentikan loop drive jika berganti ke YouTube
         document.getElementById('playerWrapper').classList.remove('hidden');
-        document.getElementById('gdrivePlayer').classList.add('hidden');
+        document.getElementById('html5Player').classList.add('hidden');
         
         const ytDOM = document.getElementById('player');
         if (ytDOM) ytDOM.classList.remove('hidden');
@@ -231,34 +230,38 @@
         if (event.data === YT.PlayerState.ENDED) player.playVideo();
     }
 
-    // Fungsi khusus Google Drive + Penambahan Sistem Autoplay & Loop Kebal
+    // === REFORMASI TOTAL PLAYER GOOGLE DRIVE ===
     function playGoogleDriveVideo(fileId) {
         isGoogleDrive = true;
-        clearInterval(driveLoopInterval); // Bersihkan interval pelacak sebelumnya jika ada
-
         document.getElementById('playerWrapper').classList.remove('hidden');
         
+        // Matikan player YouTube jika sedang aktif
         const ytDOM = document.getElementById('player');
         if (ytDOM) ytDOM.classList.add('hidden');
         if (player && typeof player.stopVideo === 'function') player.stopVideo();
 
-        const gdriveIframe = document.getElementById('gdrivePlayer');
-        gdriveIframe.classList.remove('hidden');
+        // Aktifkan Player HTML5 Video khusus Drive
+        const videoTag = document.getElementById('html5Player');
+        videoTag.classList.remove('hidden');
         
-        // Menambahkan parameter &autoplay=1 dan &loop=1 langsung ke URL Preview Google Drive
-        gdriveIframe.src = `https://drive.google.com/file/d/${fileId}/preview?autoplay=1&loop=1`;
-
-        // === ENGINE BACKUP LOOP SAKTI UNTUK GOOGLE DRIVE ===
-        // Karena API internal Drive tidak melempar event 'ENDED', kita pasang pelacak otomatis
-        // yang akan menyegarkan (refresh) iframe setiap 3-5 menit sekali jika terdeteksi berhenti.
-        // Di samping itu, jika video habis, memuat ulang iframe menjamin pemutaran loop selamanya berjalan.
-        driveLoopInterval = setInterval(() => {
-            // Deteksi jika elemen masih aktif di layar, jika ya segarkan src untuk loop berkelanjutan
-            if (isGoogleDrive && !document.hidden) {
-                console.log("Sistem memicu loop berkala untuk Google Drive Player.");
-                gdriveIframe.src = `https://drive.google.com/file/d/${fileId}/preview?autoplay=1&loop=1`;
-            }
-        }, 300000); // Memicu loop cadangan aman setiap 5 menit (bisa disesuaikan durasinya)
+        // Mengubah ID file menjadi link direct stream/download resmi milik Google Drive API
+        videoTag.src = `https://docs.google.com/uc?export=download&id=${fileId}`;
+        
+        // Paksa perintah jalankan video agar kebal autoplay policy browser saat refresh halaman
+        videoTag.muted = true; 
+        videoTag.loop = true;
+        
+        // Eksekusi pemutaran secara programatik
+        const playPromise = videoTag.play();
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                console.log("Autoplay HTML5 berhasil dijalankan otomatis.");
+            }).catch(error => {
+                console.log("Autoplay tertahan browser, dicoba ulang...", error);
+                // Metode fallback pemicu interaksi aman
+                videoTag.click();
+            });
+        }
     }
 
     async function loadNewVideo() {
