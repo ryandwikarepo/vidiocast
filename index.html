@@ -139,14 +139,14 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-    // === KONFIGURASI SUPABASE (Kunci Kamu Sudah Terpasang) ===
+    // === KONFIGURASI SUPABASE (Sudah Terisi Otomatis) ===
     const SUPABASE_URL = "https://zrycfquuqcygftngkwku.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_D7uzajVgAFW_8EC5hQp57g_IBiyAHYO"; 
     
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let player;
-    let currentVideoId = 'bRNlrdfKNd4'; // Video bawaan awal jika database kosong
+    let currentVideoId = 'bRNlrdfKNd4'; // Video cadangan default awal jika database kosong
 
     window.onload = async function() {
         try {
@@ -197,8 +197,8 @@
                     'autoplay': 1,
                     'loop': 1,
                     'playlist': currentVideoId,
-                    'mute': 1,          // Mengatasi Autoplay Policy browser modern
-                    'controls': 1,      // Memunculkan kontrol bawah agar tombol Play bawaan bisa diakses jika macet
+                    'mute': 1,          // Menembus Autoplay Policy browser modern
+                    'controls': 1,      // Memunculkan kontrol bawah agar tombol Play bisa diakses jika macet
                     'rel': 0,
                     'modestbranding': 1,
                     'fs': 0,
@@ -242,14 +242,13 @@
             // Eksekusi pemutaran lokal secara instan
             onYouTubeIframeAPIReady();
 
-            // Jalankan update data ke baris id 1 di Supabase secara real-time
+            // Metode .upsert() -> Menimpa data id 1 jika ada, membuat data baru jika kosong!
             const { error } = await supabase
                 .from('video_settings')
-                .update({ video_id: videoId })
-                .eq('id', 1);
+                .upsert({ id: 1, video_id: videoId }); 
 
             if (error) {
-                console.error("Gagal memperbarui database cloud:", error.message);
+                alert("Gagal sinkronisasi ke cloud Supabase: " + error.message);
             }
         } else {
             alert('Format link atau Video ID tidak valid!');
