@@ -132,7 +132,6 @@
             display: none !important;
         }
     </style>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -157,91 +156,64 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-    // === KONFIGURASI SUPABASE ===
-    // GANTI DENGAN DATA DARI PROJECT SETTINGS SUPABASE KAMU
+    // === KONFIGURASI SUPABASE (Sesuai Dashboard Kamu) ===
     const SUPABASE_URL = "https://zrycfquuqcygftngkwku.supabase.co"; 
-    const SUPABASE_KEY = "sb_secret__vtWThLRJpzdfyIH_Y_hIw_muNkvpuq";
+    // Ganti teks di bawah dengan Publishable Key panjang yang kamu copy dari gambar nomor 5
+    const SUPABASE_KEY = "sb_publishable_D7uzajVgAFW_8EC5hQp57g_IBiyAHYO"; 
     
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let player;
-    let currentVideoId = '';
+    let currentVideoId = 'bRNlrdfKNd4'; // Video cadangan default
 
-    // Ambil data video langsung dari database online saat halaman dibuka
     window.onload = async function() {
         try {
+            // Mengambil baris data dengan ID = 1
             const { data, error } = await supabase
                 .from('video_settings')
                 .select('video_id')
                 .eq('id', 1)
-                .single();
+                .maybeSingle();
 
-            if (data && data.video_id) {
+            // Validasi: Jika datanya ada DAN panjangnya pas 11 karakter (ID video asli)
+            if (data && data.video_id && data.video_id.length === 11) {
                 currentVideoId = data.video_id;
                 document.getElementById('youtubeUrl').value = `https://www.youtube.com/watch?v=${currentVideoId}`;
-                
-                if (typeof YT !== 'undefined' && YT.loaded) {
-                    onYouTubeIframeAPIReady();
-                }
             }
         } catch (err) {
-            console.error("Gagal memuat data dari database:", err);
+            console.log("Membaca data lokal:", err);
+        } finally {
+            if (typeof YT !== 'undefined' && YT.loaded) {
+                onYouTubeIframeAPIReady();
+            }
         }
     };
 
     function extractVideoId(url) {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
         const match = url.match(regExp);
         return (match && match[2].length === 11) ? match[2] : url;
     }
 
     function onYouTubeIframeAPIReady() {
         if (!currentVideoId) return;
-
         document.getElementById('playerWrapper').classList.remove('hidden');
 
         if (player && typeof player.loadVideoById === 'function') {
-            player.loadVideoById({
-                videoId: currentVideoId,
-                startSeconds: 0
-            });
+            player.loadVideoById({ videoId: currentVideoId, startSeconds: 0 });
             player.mute();
         } else {
             player = new YT.Player('player', {
-                height: '100%',
-                width: '100%',
-                videoId: currentVideoId,
-                playerVars: {
-                    'autoplay': 1,
-                    'loop': 1,
-                    'playlist': currentVideoId,
-                    'mute': 1,
-                    'controls': 0,
-                    'rel': 0,
-                    'modestbranding': 1,
-                    'fs': 0,
-                    'iv_load_policy': 3
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
-                }
+                height: '100%', width: '100%', videoId: currentVideoId,
+                playerVars: { 'autoplay': 1, 'loop': 1, 'playlist': currentVideoId, 'mute': 1, 'controls': 0, 'rel': 0, 'modestbranding': 1, 'fs': 0, 'iv_load_policy': 3 },
+                events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
             });
         }
     }
 
-    function onPlayerReady(event) {
-        event.target.mute();
-        event.target.playVideo();
-    }
+    function onPlayerReady(event) { event.target.mute(); event.target.playVideo(); }
+    function onPlayerStateChange(event) { if (event.data === YT.PlayerState.ENDED) { player.playVideo(); } }
 
-    function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.ENDED) {
-            player.playVideo();
-        }
-    }
-
-    // Fungsi Putar: Sekarang langsung menyimpan/update ID ke database Supabase
     async function loadNewVideo() {
         const inputData = document.getElementById('youtubeUrl').value.trim();
         if (!inputData) return alert('Masukkan link YouTube terlebih dahulu!');
@@ -251,16 +223,17 @@
         if (videoId.length === 11) {
             currentVideoId = videoId;
             
-            // Simpan perubahan ke cloud database Supabase (di baris id: 1)
+            // Putar secara instan di layar komputer saat ini dulu
+            onYouTubeIframeAPIReady();
+
+            // Jalankan update data ke baris id 1 di Supabase secara real-time
             const { error } = await supabase
                 .from('video_settings')
                 .update({ video_id: videoId })
                 .eq('id', 1);
 
             if (error) {
-                alert("Gagal menyimpan ke database cloud: " + error.message);
-            } else {
-                onYouTubeIframeAPIReady();
+                alert("Sinkronisasi cloud terkendala: " + error.message);
             }
         } else {
             alert('Format link atau Video ID tidak valid!');
