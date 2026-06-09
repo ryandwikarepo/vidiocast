@@ -139,18 +139,19 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-    // === KONFIGURASI SUPABASE (Sudah Terisi Otomatis) ===
+    // === KONFIGURASI SUPABASE (Nama variabel diubah agar tidak bentrok) ===
     const SUPABASE_URL = "https://zrycfquuqcygftngkwku.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_D7uzajVgAFW_8EC5hQp57g_IBiyAHYO"; 
     
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Menggunakan nama 'supabaseClient' untuk menghindari SyntaxError
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let player;
-    let currentVideoId = 'bRNlrdfKNd4'; // Video cadangan default awal jika database kosong
+    let currentVideoId = 'bRNlrdfKNd4'; 
 
     window.onload = async function() {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('video_settings')
                 .select('video_id')
                 .eq('id', 1)
@@ -197,8 +198,8 @@
                     'autoplay': 1,
                     'loop': 1,
                     'playlist': currentVideoId,
-                    'mute': 1,          // Menembus Autoplay Policy browser modern
-                    'controls': 1,      // Memunculkan kontrol bawah agar tombol Play bisa diakses jika macet
+                    'mute': 1,          
+                    'controls': 1,      
                     'rel': 0,
                     'modestbranding': 1,
                     'fs': 0,
@@ -216,7 +217,6 @@
         event.target.mute();
         event.target.playVideo();
         
-        // Memaksa perintah pemutaran ulang demi kestabilan sinkronisasi awal
         setTimeout(() => {
             if (event.target.getPlayerState() !== 1) {
                 event.target.playVideo();
@@ -239,11 +239,10 @@
         if (videoId.length === 11) {
             currentVideoId = videoId;
             
-            // Eksekusi pemutaran lokal secara instan
             onYouTubeIframeAPIReady();
 
-            // Metode .upsert() -> Menimpa data id 1 jika ada, membuat data baru jika kosong!
-            const { error } = await supabase
+            // Menggunakan database `.upsert()` melalui client baru
+            const { error } = await supabaseClient
                 .from('video_settings')
                 .upsert({ id: 1, video_id: videoId }); 
 
