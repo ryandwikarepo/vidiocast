@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Player Loop & Mute - Global Sync</title>
+    <title>YouTube Loop & Mute Player - Global Sync</title>
     <style>
         body {
             margin: 0;
@@ -72,23 +72,12 @@
             height: 100vh;
             border-radius: 0;
         }
-        /* Style untuk YouTube Player */
-        .video-wrapper iframe#player {
+        .video-wrapper iframe {
             position: absolute;
             top: -60px;
             left: 0;
             width: 100%;
             height: calc(100% + 120px);
-        }
-        /* Style untuk HTML5 Video Player (Google Drive) */
-        .video-wrapper video#html5Player {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background: #000;
         }
         .fullscreen-btn {
             position: absolute;
@@ -133,15 +122,12 @@
 
 <div class="container">
     <div class="input-section">
-        <input type="text" id="youtubeUrl" placeholder="Masukkan Link YouTube atau Google Drive...">
+        <input type="text" id="youtubeUrl" placeholder="Masukkan Link YouTube atau Video ID...">
         <button onclick="loadNewVideo()">Putar</button>
     </div>
 
     <div id="playerWrapper" class="video-wrapper hidden">
         <div id="player"></div>
-        
-        <video id="html5Player" class="hidden" autoplay loop muted playsinline controls></video>
-
         <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Layar Penuh">
             <svg viewBox="0 0 24 24">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -160,7 +146,6 @@
 
     let player;
     let currentVideoId = 'bRNlrdfKNd4'; 
-    let isGoogleDrive = false;
 
     window.onload = async function() {
         try {
@@ -172,51 +157,57 @@
 
             if (data && data.video_id && data.video_id !== 'contoh') {
                 currentVideoId = data.video_id;
+                // Mengosongkan kolom saat load pertama kali agar tidak menampilkan link dari database
                 document.getElementById('youtubeUrl').value = '';
-                
-                isGoogleDrive = currentVideoId.startsWith("gdrive_");
-                
-                if (isGoogleDrive) {
-                    playGoogleDriveVideo(currentVideoId.replace("gdrive_", ""));
-                } else {
-                    if (typeof YT !== 'undefined' && YT.loaded) {
-                        onYouTubeIframeAPIReady();
-                    }
-                }
             }
         } catch (err) {
             console.log("Membaca konfigurasi fallback lokal:", err);
+        } finally {
+            if (typeof YT !== 'undefined' && YT.loaded) {
+                onYouTubeIframeAPIReady();
+            }
         }
     };
 
-    function extractMediaInfo(url) {
-        if (url.includes("drive.google.com")) {
-            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            return match ? { type: 'gdrive', id: match[1] } : null;
-        } else {
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
-            const match = url.match(regExp);
-            return (match && match[2].length === 11) ? { type: 'youtube', id: match[2] } : { type: 'youtube', id: url };
-        }
+    function extractVideoId(url) {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : url;
     }
 
     function onYouTubeIframeAPIReady() {
-        if (isGoogleDrive || !currentVideoId) return;
-        
+        if (!currentVideoId) return;
         document.getElementById('playerWrapper').classList.remove('hidden');
-        document.getElementById('html5Player').classList.add('hidden');
-        
-        const ytDOM = document.getElementById('player');
-        if (ytDOM) ytDOM.classList.remove('hidden');
 
         if (player && typeof player.loadVideoById === 'function') {
-            player.loadVideoById({ videoId: currentVideoId, startSeconds: 0 });
-            setTimeout(() => { player.mute(); player.playVideo(); }, 500);
+            player.loadVideoById({
+                videoId: currentVideoId,
+                startSeconds: 0
+            });
+            setTimeout(() => {
+                player.mute();
+                player.playVideo();
+            }, 500);
         } else {
             player = new YT.Player('player', {
-                height: '100%', width: '100%', videoId: currentVideoId,
-                playerVars: { 'autoplay': 1, 'loop': 1, 'playlist': currentVideoId, 'mute': 1, 'controls': 1, 'rel': 0, 'modestbranding': 1, 'fs': 0, 'iv_load_policy': 3 },
-                events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+                height: '100%',
+                width: '100%',
+                videoId: currentVideoId,
+                playerVars: {
+                    'autoplay': 1,
+                    'loop': 1,
+                    'playlist': currentVideoId,
+                    'mute': 1,          
+                    'controls': 1,      
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'fs': 0,
+                    'iv_load_policy': 3
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
             });
         }
     }
@@ -224,81 +215,50 @@
     function onPlayerReady(event) {
         event.target.mute();
         event.target.playVideo();
+        
+        setTimeout(() => {
+            if (event.target.getPlayerState() !== 1) {
+                event.target.playVideo();
+            }
+        }, 1000);
     }
 
     function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.ENDED) player.playVideo();
-    }
-
-    // === REFORMASI TOTAL PLAYER GOOGLE DRIVE ===
-    function playGoogleDriveVideo(fileId) {
-        isGoogleDrive = true;
-        document.getElementById('playerWrapper').classList.remove('hidden');
-        
-        // Matikan player YouTube jika sedang aktif
-        const ytDOM = document.getElementById('player');
-        if (ytDOM) ytDOM.classList.add('hidden');
-        if (player && typeof player.stopVideo === 'function') player.stopVideo();
-
-        // Aktifkan Player HTML5 Video khusus Drive
-        const videoTag = document.getElementById('html5Player');
-        videoTag.classList.remove('hidden');
-        
-        // Mengubah ID file menjadi link direct stream/download resmi milik Google Drive API
-        videoTag.src = `https://docs.google.com/uc?export=download&id=${fileId}`;
-        
-        // Paksa perintah jalankan video agar kebal autoplay policy browser saat refresh halaman
-        videoTag.muted = true; 
-        videoTag.loop = true;
-        
-        // Eksekusi pemutaran secara programatik
-        const playPromise = videoTag.play();
-        if (playPromise !== undefined) {
-            playPromise.then(_ => {
-                console.log("Autoplay HTML5 berhasil dijalankan otomatis.");
-            }).catch(error => {
-                console.log("Autoplay tertahan browser, dicoba ulang...", error);
-                // Metode fallback pemicu interaksi aman
-                videoTag.click();
-            });
+        if (event.data === YT.PlayerState.ENDED) {
+            player.playVideo();
         }
     }
 
     async function loadNewVideo() {
         const inputField = document.getElementById('youtubeUrl');
         const inputData = inputField.value.trim();
-        if (!inputData) return alert('Masukkan link YouTube atau Google Drive terlebih dahulu!');
+        if (!inputData) return alert('Masukkan link YouTube terlebih dahulu!');
 
-        const media = extractMediaInfo(inputData);
+        const videoId = extractVideoId(inputData);
         
-        if (media) {
-            let dbValue = media.id;
-
-            if (media.type === 'gdrive') {
-                isGoogleDrive = true;
-                dbValue = "gdrive_" + media.id;
-                playGoogleDriveVideo(media.id);
-            } else {
-                isGoogleDrive = false;
-                currentVideoId = media.id;
-                onYouTubeIframeAPIReady();
-            }
+        if (videoId.length === 11) {
+            currentVideoId = videoId;
+            
+            onYouTubeIframeAPIReady();
 
             const { error } = await supabaseClient
                 .from('video_settings')
-                .upsert({ id: 1, video_id: dbValue }); 
+                .upsert({ id: 1, video_id: videoId }); 
 
             if (error) {
                 alert("Gagal sinkronisasi ke cloud Supabase: " + error.message);
             } else {
+                // === SOLUSI: Langsung kosongkan input teks setelah berhasil simpan ===
                 inputField.value = '';
-                inputField.placeholder = "Media berhasil disinkronkan!";
+                inputField.placeholder = "Video berhasil disinkronkan!";
+                
+                // Kembalikan placeholder bawaan setelah 3 detik
                 setTimeout(() => {
-                    inputField.placeholder = "Masukkan Link YouTube atau Google Drive...";
+                    inputField.placeholder = "Masukkan Link YouTube atau Video ID...";
                 }, 3000);
             }
         } else {
-            alert('Format link tidak valid!');
+            alert('Format link atau Video ID tidak valid!');
         }
     }
 
