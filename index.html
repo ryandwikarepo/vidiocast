@@ -199,7 +199,7 @@
     </div>
 </div>
 
-<!-- === KONTEN UTAMA (SINTAKS SUDAH DIPERBAIKI) === -->
+<!-- === KONTEN UTAMA === -->
 <div id="mainContent" class="container hidden">
     
     <!-- === BAGIAN PEMUTAR UTAMA (PERTAMA / ATAS) === -->
@@ -250,17 +250,13 @@
     let currentVideoId1 = 'bRNlrdfKNd4'; 
     let currentVideoId2 = 'bRNlrdfKNd4'; 
     
-    // Konfigurasi Password
     const SECRET_PASSWORD = "12345678";
 
-    // Fungsi verifikasi password
     function verifyPassword() {
         const inputPass = document.getElementById('pagePassword').value;
         if (inputPass === SECRET_PASSWORD) {
-            // Sembunyikan form login, tampilkan isi player
             document.getElementById('authOverlay').classList.add('hidden');
             document.getElementById('mainContent').classList.remove('hidden');
-            // Mulai jalankan sinkronisasi data video
             initializeApplication();
         } else {
             alert('Password salah! Akses ditolak.');
@@ -268,14 +264,12 @@
         }
     }
 
-    // Dukungan tekan tombol Enter untuk login
     function checkEnterKey(event) {
         if (event.key === "Enter") {
             verifyPassword();
         }
     }
 
-    // Fungsi utama untuk inisialisasi aplikasi setelah password sukses
     async function initializeApplication() {
         try {
             const res1 = await supabaseClient
@@ -309,7 +303,6 @@
             }
         }
 
-        // Jalankan Realtime Sync
         supabaseClient
             .channel('schema-db-changes')
             .on(
@@ -334,7 +327,6 @@
     }
 
     window.onload = function() {
-        // Fokuskan kursor otomatis ke kolom password saat halaman dibuka
         document.getElementById('pagePassword').focus();
     };
 
@@ -358,10 +350,12 @@
         if (targetPlayer && typeof targetPlayer.loadVideoById === 'function') {
             targetPlayer.loadVideoById({
                 videoId: videoId,
-                startSeconds: 0
+                startSeconds: 0,
+                suggestedQuality: 'hd1080' // Set kualitas ke 1080p saat ganti video
             });
             setTimeout(() => {
                 targetPlayer.mute();
+                targetPlayer.setPlaybackQuality('hd1080'); // Paksa lagi kualitas 1080p
                 targetPlayer.playVideo();
             }, 500);
         } else {
@@ -378,17 +372,23 @@
                     'rel': 0,
                     'modestbranding': 1,
                     'fs': 0,
-                    'iv_load_policy': 3
+                    'iv_load_policy': 3,
+                    'vq': 'hd1080' // Inisialisasi awal kualitas video ke 1080p
                 },
                 events: {
                     'onReady': (event) => {
                         event.target.mute();
+                        event.target.setPlaybackQuality('hd1080'); // Paksa kualitas ke 1080p saat siap
                         event.target.playVideo();
                         setTimeout(() => {
                             if (event.target.getPlayerState() !== 1) event.target.playVideo();
                         }, 1000);
                     },
                     'onStateChange': (event) => {
+                        // Jika video mulai berputar, pastikan kualitasnya diset ke tertinggi/1080p
+                        if (event.data === YT.PlayerState.PLAYING) {
+                            event.target.setPlaybackQuality('hd1080');
+                        }
                         if (event.data === YT.PlayerState.ENDED) {
                             event.target.playVideo();
                         }
