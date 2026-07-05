@@ -199,8 +199,8 @@
     </div>
 </div>
 
-<!-- === KONTEN UTAMA (TERSEMBUNYI DI AWAL) === -->
-<div class="container id="mainContent" class="container hidden">
+<!-- === KONTEN UTAMA (SINTAKS SUDAH DIPERBAIKI) === -->
+<div id="mainContent" class="container hidden">
     
     <!-- === BAGIAN PEMUTAR UTAMA (PERTAMA / ATAS) === -->
     <div class="player-section">
@@ -275,7 +275,7 @@
         }
     }
 
-    // Fungsi utama dipindahkan ke sini agar tidak memuat video di latar belakang sebelum login
+    // Fungsi utama untuk inisialisasi aplikasi setelah password sukses
     async function initializeApplication() {
         try {
             const res1 = await supabaseClient
@@ -333,7 +333,6 @@
             .subscribe();
     }
 
-    // Kosongkan window.onload standar, digantikan alurnya ke verifikasi password
     window.onload = function() {
         // Fokuskan kursor otomatis ke kolom password saat halaman dibuka
         document.getElementById('pagePassword').focus();
