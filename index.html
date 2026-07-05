@@ -16,16 +16,66 @@
             justify-content: flex-start;
             min-height: 100vh;
             color: #fff;
-            /* overflow diubah ke auto agar halaman bisa di-scroll ke bawah */
             overflow-y: auto; 
         }
+        
+        /* === STYLE GERBANG PASSWORD === */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .auth-box {
+            background-color: #1a1a1a;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            text-align: center;
+            border: 1px solid #333;
+            max-width: 400px;
+            width: 85%;
+        }
+        .auth-box h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 20px;
+            color: #fff;
+        }
+        .auth-box input[type="password"] {
+            width: 90%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #414141;
+            background-color: #222;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .auth-box input[type="password"]:focus {
+            outline: 1px solid #ff0000;
+        }
+        .auth-box button {
+            width: 100%;
+            padding: 12px;
+        }
+
+        /* === STYLE KONTEN UTAMA === */
         .container {
             width: 90%;
             max-width: 800px;
             text-align: center;
             display: flex;
             flex-direction: column;
-            gap: 50px; /* Jarak pemisah antara Player 1 dan Player 2 */
+            gap: 50px; 
         }
         .player-section {
             width: 100%;
@@ -47,7 +97,6 @@
             position: relative;
             width: 100%;
         }
-        /* Menyembunyikan input saat player yang bersangkutan fullscreen */
         .video-wrapper:fullscreen ~ .input-section,
         :fullscreen .input-section {
             display: none !important;
@@ -141,8 +190,19 @@
 </head>
 <body>
 
-<div class="container">
+<!-- === LAYER PROTEKSI PASSWORD === -->
+<div id="authOverlay" class="auth-overlay">
+    <div class="auth-box">
+        <h2>Akses Terbatas</h2>
+        <input type="password" id="pagePassword" placeholder="Masukkan Password..." onkeydown="checkEnterKey(event)">
+        <button onclick="verifyPassword()">Masuk</button>
+    </div>
+</div>
+
+<!-- === KONTEN UTAMA (TERSEMBUNYI DI AWAL) === -->
+<div class="container id="mainContent" class="container hidden">
     
+    <!-- === BAGIAN PEMUTAR UTAMA (PERTAMA / ATAS) === -->
     <div class="player-section">
         <div class="player-title">Pemutar Video 1</div>
         <div class="input-section">
@@ -159,6 +219,7 @@
         </div>
     </div>
 
+    <!-- === BAGIAN PEMUTAR KEDUA (BAWAH) === -->
     <div class="player-section">
         <div class="player-title">Pemutar Video 2</div>
         <div class="input-section">
@@ -185,15 +246,38 @@
     
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Definisi instansiasi player YouTube secara terpisah
     let player1, player2;
-    let currentVideoId1 = 'bRNlrdfKNd4'; // Default fallback video atas
-    let currentVideoId2 = 'bRNlrdfKNd4'; // Default fallback video bawah
+    let currentVideoId1 = 'bRNlrdfKNd4'; 
+    let currentVideoId2 = 'bRNlrdfKNd4'; 
+    
+    // Konfigurasi Password
+    const SECRET_PASSWORD = "12345678";
 
-    window.onload = async function() {
-        // 1. Ambil data tersimpan dari Supabase Cloud saat load halaman pertama kali
+    // Fungsi verifikasi password
+    function verifyPassword() {
+        const inputPass = document.getElementById('pagePassword').value;
+        if (inputPass === SECRET_PASSWORD) {
+            // Sembunyikan form login, tampilkan isi player
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            // Mulai jalankan sinkronisasi data video
+            initializeApplication();
+        } else {
+            alert('Password salah! Akses ditolak.');
+            document.getElementById('pagePassword').value = '';
+        }
+    }
+
+    // Dukungan tekan tombol Enter untuk login
+    function checkEnterKey(event) {
+        if (event.key === "Enter") {
+            verifyPassword();
+        }
+    }
+
+    // Fungsi utama dipindahkan ke sini agar tidak memuat video di latar belakang sebelum login
+    async function initializeApplication() {
         try {
-            // Ambil data untuk Player 1 (ID baris 1 di database)
             const res1 = await supabaseClient
                 .from('video_settings')
                 .select('video_id')
@@ -204,7 +288,6 @@
                 currentVideoId1 = res1.data.video_id;
             }
 
-            // Ambil data untuk Player 2 (ID baris 2 di database)
             const res2 = await supabaseClient
                 .from('video_settings')
                 .select('video_id')
@@ -215,7 +298,6 @@
                 currentVideoId2 = res2.data.video_id;
             }
 
-            // Keamanan Privasi: Kosongkan teks kolom link bawaan
             document.getElementById('youtubeUrl1').value = '';
             document.getElementById('youtubeUrl2').value = '';
 
@@ -227,7 +309,7 @@
             }
         }
 
-        // 2. Mengaktifkan fitur Realtime otomatis tanpa penyegaran browser (Realtime Sync)
+        // Jalankan Realtime Sync
         supabaseClient
             .channel('schema-db-changes')
             .on(
@@ -249,6 +331,12 @@
                 }
             )
             .subscribe();
+    }
+
+    // Kosongkan window.onload standar, digantikan alurnya ke verifikasi password
+    window.onload = function() {
+        // Fokuskan kursor otomatis ke kolom password saat halaman dibuka
+        document.getElementById('pagePassword').focus();
     };
 
     function extractVideoId(url) {
@@ -257,13 +345,11 @@
         return (match && match[2].length === 11) ? match[2] : url;
     }
 
-    // Inisialisasi awal API YouTube untuk kedua pemutar
     function onYouTubeIframeAPIReady() {
         setupSinglePlayer(1, currentVideoId1);
         setupSinglePlayer(2, currentVideoId2);
     }
 
-    // Fungsi pembuat sistem objek player YouTube mandiri
     function setupSinglePlayer(playerNum, videoId) {
         if (!videoId) return;
         document.getElementById(`playerWrapper${playerNum}`).classList.remove('hidden');
@@ -316,7 +402,6 @@
         }
     }
 
-    // Fungsi trigger tombol putar link
     async function loadNewVideo(playerNum) {
         const inputField = document.getElementById(`youtubeUrl${playerNum}`);
         const inputData = inputField.value.trim();
@@ -328,10 +413,8 @@
             if (playerNum === 1) currentVideoId1 = videoId;
             else currentVideoId2 = videoId;
             
-            // Eksekusi pemutaran lokal secara instan
             setupSinglePlayer(playerNum, videoId);
 
-            // Perbarui record baris ke database cloud (id: 1 untuk player 1, id: 2 untuk player 2)
             const { error } = await supabaseClient
                 .from('video_settings')
                 .upsert({ id: playerNum, video_id: videoId }); 
@@ -339,7 +422,6 @@
             if (error) {
                 alert("Gagal sinkronisasi data ke cloud Supabase: " + error.message);
             } else {
-                // Kebijakan Privasi: Bersihkan input link agar tidak mengintip data link lama
                 inputField.value = '';
                 inputField.placeholder = `Video ${playerNum} disinkronkan!`;
                 
