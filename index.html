@@ -67,6 +67,13 @@
             width: 100%;
             padding: 12px;
         }
+        .credit-input {
+            font-size: 11px;
+            color: #666;
+            margin-top: 15px;
+            display: block;
+            letter-spacing: 0.5px;
+        }
 
         /* === STYLE KONTEN UTAMA === */
         .container {
@@ -127,6 +134,24 @@
         button:hover {
             background-color: #cc0000;
         }
+        
+        /* Style Tombol Preview Layar */
+        .preview-btn {
+            margin-top: 15px;
+            background-color: #222;
+            color: #ccc;
+            border: 1px solid #444;
+            font-size: 14px;
+            padding: 8px 16px;
+            font-weight: normal;
+            transition: all 0.2s ease;
+        }
+        .preview-btn:hover {
+            background-color: #333;
+            color: #fff;
+            border-color: #666;
+        }
+
         .video-wrapper {
             position: relative;
             width: 100%;
@@ -182,6 +207,13 @@
             stroke-linecap: round;
             stroke-linejoin: round;
         }
+        .footer-credit {
+            font-size: 12px;
+            color: #444;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
         .hidden {
             display: none !important;
         }
@@ -196,6 +228,7 @@
         <h2>Silahkan Masukan Password</h2>
         <input type="password" id="pagePassword" placeholder="Masukkan Password..." onkeydown="checkEnterKey(event)">
         <button onclick="verifyPassword()">Masuk</button>
+        <span class="credit-input">dibuat oleh ryandwika</span>
     </div>
 </div>
 
@@ -217,6 +250,8 @@
                 </svg>
             </button>
         </div>
+        <!-- Tombol Preview Layar 1 -->
+        <button class="preview-btn" onclick="window.open('https://clccdisplay1.vercel.app/', '_blank')">Preview Layar 1</button>
     </div>
 
     <!-- === BAGIAN PEMUTAR KEDUA (BAWAH) === -->
@@ -234,8 +269,12 @@
                 </svg>
             </button>
         </div>
+        <!-- Tombol Preview Layar 2 -->
+        <button class="preview-btn" onclick="window.open('https://clccdisplay2.vercel.app/', '_blank')">Preview Layar 2</button>
     </div>
 
+    <!-- Credit di Paling Bawah Halaman Utama -->
+    <div class="footer-credit">dibuat oleh ryandwika</div>
 </div>
 
 <script src="https://www.youtube.com/iframe_api"></script>
@@ -351,11 +390,11 @@
             targetPlayer.loadVideoById({
                 videoId: videoId,
                 startSeconds: 0,
-                suggestedQuality: 'hd1080' // Set kualitas ke 1080p saat ganti video
+                suggestedQuality: 'hd1080'
             });
             setTimeout(() => {
                 targetPlayer.mute();
-                targetPlayer.setPlaybackQuality('hd1080'); // Paksa lagi kualitas 1080p
+                targetPlayer.setPlaybackQuality('hd1080');
                 targetPlayer.playVideo();
             }, 500);
         } else {
@@ -373,19 +412,18 @@
                     'modestbranding': 1,
                     'fs': 0,
                     'iv_load_policy': 3,
-                    'vq': 'hd1080' // Inisialisasi awal kualitas video ke 1080p
+                    'vq': 'hd1080'
                 },
                 events: {
                     'onReady': (event) => {
                         event.target.mute();
-                        event.target.setPlaybackQuality('hd1080'); // Paksa kualitas ke 1080p saat siap
+                        event.target.setPlaybackQuality('hd1080');
                         event.target.playVideo();
                         setTimeout(() => {
                             if (event.target.getPlayerState() !== 1) event.target.playVideo();
                         }, 1000);
                     },
                     'onStateChange': (event) => {
-                        // Jika video mulai berputar, pastikan kualitasnya diset ke tertinggi/1080p
                         if (event.data === YT.PlayerState.PLAYING) {
                             event.target.setPlaybackQuality('hd1080');
                         }
