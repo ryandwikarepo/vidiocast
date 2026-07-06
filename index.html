@@ -360,7 +360,8 @@
                     'rel': 0,
                     'modestbranding': 1,
                     'fs': 1,
-                    'cc_load_policy': 0,  /* MENONAKTIFKAN SUBTITEL / CC BAWAAN */
+                    'cc_load_policy': 0,  
+                    'cc_lang_pref': 'none', /* Paksa sistem mencari bahasa bernama 'none' (kosong) */
                     'iv_load_policy': 3,
                     'vq': 'hd1080'
                 },
@@ -369,6 +370,15 @@
                         event.target.mute();
                         event.target.setPlaybackQuality('hd1080');
                         event.target.playVideo();
+                        
+                        // EKSTRA PROTEKSI: Panggil fungsi API internal untuk mematikan subtitle secara paksa sesaat setelah video siap
+                        if (typeof event.target.unloadModule === 'function') {
+                            event.target.unloadModule('captions');
+                        }
+                        if (typeof event.target.setOption === 'function') {
+                            event.target.setOption('captions', 'track', {});
+                        }
+
                         setTimeout(() => {
                             if (event.target.getPlayerState() !== 1) event.target.playVideo();
                         }, 1000);
@@ -376,6 +386,10 @@
                     'onStateChange': (event) => {
                         if (event.data === YT.PlayerState.PLAYING) {
                             event.target.setPlaybackQuality('hd1080');
+                            // Pastikan modul caption dilepas saat video mulai dimainkan
+                            if (typeof event.target.unloadModule === 'function') {
+                                event.target.unloadModule('captions');
+                            }
                         }
                         if (event.data === YT.PlayerState.ENDED) {
                             event.target.playVideo();
