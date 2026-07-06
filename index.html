@@ -104,10 +104,6 @@
             position: relative;
             width: 100%;
         }
-        .video-wrapper:fullscreen ~ .input-section,
-        :fullscreen .input-section {
-            display: none !important;
-        }
         input[type="text"] {
             width: 65%;
             padding: 10px;
@@ -163,51 +159,12 @@
             overflow: hidden;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-        .video-wrapper:fullscreen {
-            padding-bottom: 0;
-            width: 100vw;
-            height: 100vh;
-            border-radius: 0;
-        }
         .video-wrapper iframe {
             position: absolute;
             top: -60px;
             left: 0;
             width: 100%;
             height: calc(100% + 120px);
-        }
-        .fullscreen-btn {
-            position: absolute;
-            bottom: 15px;
-            right: 15px;
-            z-index: 15;
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease, background 0.2s;
-        }
-        .fullscreen-btn:hover {
-            background: rgba(255, 0, 0, 0.8);
-            border-color: #ff0000;
-        }
-        .video-wrapper:hover .fullscreen-btn {
-            opacity: 1;
-        }
-        .fullscreen-btn svg {
-            width: 20px;
-            height: 20px;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
         }
         .footer-credit {
             font-size: 12px;
@@ -246,11 +203,6 @@
         </div>
         <div id="playerWrapper1" class="video-wrapper hidden">
             <div id="player1"></div>
-            <button class="fullscreen-btn" onclick="toggleFullscreen('playerWrapper1')" title="Layar Penuh">
-                <svg viewBox="0 0 24 24">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-            </button>
         </div>
         <!-- Tombol Preview Layar 1 -->
         <button class="preview-btn" onclick="window.open('https://clccdisplay1.vercel.app/', '_blank')">Preview Layar 1</button>
@@ -265,11 +217,6 @@
         </div>
         <div id="playerWrapper2" class="video-wrapper hidden">
             <div id="player2"></div>
-            <button class="fullscreen-btn" onclick="toggleFullscreen('playerWrapper2')" title="Layar Penuh">
-                <svg viewBox="0 0 24 24">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-            </button>
         </div>
         <!-- Tombol Preview Layar 2 -->
         <button class="preview-btn" onclick="window.open('https://clccdisplay2.vercel.app/', '_blank')">Preview Layar 2</button>
@@ -412,7 +359,7 @@
                     'controls': 1,      
                     'rel': 0,
                     'modestbranding': 1,
-                    'fs': 0,
+                    'fs': 1,              /* MENGAKTIFKAN TOMBOL FULLSCREEN BAWAAN */
                     'iv_load_policy': 3,
                     'vq': 'hd1080'
                 },
@@ -470,17 +417,6 @@
             }
         } else {
             alert('Format link atau Video ID tidak valid!');
-        }
-    }
-
-    function toggleFullscreen(wrapperId) {
-        const elem = document.getElementById(wrapperId);
-        if (!document.fullscreenElement) {
-            if (elem.requestFullscreen) elem.requestFullscreen();
-            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
         }
     }
 </script>
